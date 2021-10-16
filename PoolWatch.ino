@@ -29,7 +29,8 @@ int phArray[8];
 LoRaModem modem;
 
 int mode = 1; //1:OTAA, 2:ABP
-byte payload[8];
+#define PAYLOAD_SIZE    (8)
+byte payload[PAYLOAD_SIZE];
 
 /* Application */
 uint32_t sleep_ms = 30 * 1000; /* sleep in ms 60*60*1000 = 1 hour */
