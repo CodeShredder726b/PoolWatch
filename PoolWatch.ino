@@ -1,24 +1,47 @@
 /* MKR WAN 1310 LoRa module. */
 #include <MKRWAN.h>
 #include <ArduinoLowPower.h>
+#include "keys.h"
 
+/* PH */
+/**
+ * Calibration:
+ * - Rohrreiniger   12-14
+ * - Wasser         7-9
+ * - Milch          6
+ * - Kaffee         5
+ * - Essig          2
+ * 
+ * Measure two defined pH solutions, add them to ph1/v1 and ph2/v2
+ */
+#define v1Calib         (0.67)
+#define ph1Calib        (2)
+#define v2Calib         (2.01)
+#define ph2Calib        (8)
+/* calculate offset */
+#define offset          (ph1Calib - ((ph2Calib - ph1Calib) / (v2Calib - v1Calib)) * v1Calib)
+
+#define PH_ANALOG_PIN     (A0)
+
+int phArray[8];
+
+/* LoRa */
 LoRaModem modem;
 
-#define PH_ANALOG_PIN   (A0)
-#define PH_OFFSET       (-5.8)//(-3.41)
-#define AVG             (1)
-
-String appEui   = "7061756C706F6F6C";
-String appKey   = "953A6927DD6DFAB49AD447F9E8739F23";
-String devAddr  = "260B66FE";
-String nwkSKey  = "0C09AA8AA6A6254391E23E608BE1806D";
-String appSKey  = "C05FACF5E67D31410ED7F7A7096EDB13";
-int mode        = 1; //1:OTAA, 2:ABP
+int mode = 1; //1:OTAA, 2:ABP
 byte payload[8];
-uint32_t sleep_ms = 60 * 60 * 1000; // 1 hour
+
+/* Application */
+uint32_t sleep_ms = 30 * 1000; /* sleep in ms 60*60*1000 = 1 hour */
+//uint32_t sleep_ms = 60 * 60 * 1000; /* sleep in ms 60*60*1000 = 1 hour */
 
 void getData()
 {
+  uint32_t bat = 0;
+  uint32_t temp = 0;
+  uint32_t ph = 0;
+  
+  /*
   uint64_t analog_measure = 0;
   for (int i = 0; i < AVG; i++)
   {
@@ -35,9 +58,21 @@ void getData()
 
   int32_t ph = 3.5 * (ph_mv + PH_OFFSET) * 1000;    // to ph         0.028
   Serial.println(ph);
+  */
 
-  uint32_t bat = 0;
-  uint32_t temp = 0;
+  /* read analog value */
+  analogReadResolution(12);
+  int a = analogRead(PH_ANALOG_PIN);
+  
+  /* 3.3V Range / 4095 Resolution * analog value */
+  float V = 3.3 / 4095 * a;
+  Serial.print("measured [V]: ");
+  Serial.print(V);
+
+  ph = (((ph2Calib - ph1Calib) / (v2Calib - v1Calib)) * V + offset) * 1000;
+  Serial.print("  -> pH: ");
+  Serial.print(ph/1000);
+  Serial.println();
 
   payload[0] = highByte(ph);
   payload[1] = lowByte(ph);
@@ -54,9 +89,10 @@ void sendLora()
   int err;
   modem.setPort(3);
   modem.beginPacket();
-  modem.write(payload, 8);
+  modem.write(payload, sizeof(payload));
   err = modem.endPacket(true);
 
+  memset(payload,0,sizeof(payload));
   if (err > 0) {
     Serial.println("Message sent correctly!");
   } else {
