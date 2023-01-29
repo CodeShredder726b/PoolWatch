@@ -6,6 +6,7 @@ read PH sensor values with an Arduino MKR 1310 and send the data to LoRa
 ## Temperature Sensor
 - DS18B20 (not DS18S20!) one wire https://github.com/milesburton/Arduino-Temperature-Control-Library
 - SHT-30 I2C Sensirion SHT-3
+- AHT20 I2C Temp/RH sensor
 - 10K precision epoxy thermistor 3950 NTC for internal temperature/humidity measure
 
 ## Battery and Solar
@@ -45,7 +46,7 @@ Alternatives:
 ## TTN / Swisscom
 ### TTN
 Applications -> Add application
-- Frequency: Europe 868-870 MHz (SF9 for RX2)
+- Frequency: Europe 868-870 MHz (SF9 for RX2), 434 MHz
 - LoRaWAN version: MAC V1.0.2
 - Regional Parameter version: PHY V1.0.2 REV A
 - Networ Server Address: eu1.cloud.thethings.network
