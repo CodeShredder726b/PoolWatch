@@ -52,9 +52,24 @@ Applications -> Add application
 - Application Server Address: eu1.cloud.thethings.network
 - Join Server Address: eu1.cloud.thethings.network
 
+## Cloud
+- InfluxDB Cloud 2.0
+- Azure IoT		10.-/Mt
+- AWS IoT Core	
+
 ## Local Server
-### Get and store in DB
-### Display 
+### Dynamic DNS
+- https://www.dynu.com
+- https://www.cloudflare.com
+- https://www.noip.com
+Swisscom
+
+### NodeRED
+
+### InfluxDB
+
+### Grafana
+
 ### Notification
 
 

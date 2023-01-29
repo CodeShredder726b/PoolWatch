@@ -1,7 +1,13 @@
 /* MKR WAN 1310 LoRa module. */
 #include <MKRWAN.h>
 #include <ArduinoLowPower.h>
+#include <OneWire.h>
+#include <DallasTemperature.h>
+#include <Adafruit_AHTX0.h>
 #include "keys.h"
+
+//#define LOW_POWER_EN
+//#define LORA_SEND_EN
 
 /* PH */
 /**
@@ -22,25 +28,34 @@
 #define offset          (ph1Calib - ((ph2Calib - ph1Calib) / (v2Calib - v1Calib)) * v1Calib)
 
 #define PH_ANALOG_PIN     (A0)
+#define DS18B20_PIN       (0)
 
 int phArray[8];
 
 /* LoRa */
 LoRaModem modem;
 
+/* DS18B20 Temperature */
+OneWire oneWire(DS18B20_PIN);
+DallasTemperature sensors(&oneWire);
+
+/* AHT20 Temp/RH */
+Adafruit_AHTX0 aht;
+
 int mode = 1; //1:OTAA, 2:ABP
-#define PAYLOAD_SIZE    (8)
+#define PAYLOAD_SIZE    (10)
 byte payload[PAYLOAD_SIZE];
 
 /* Application */
-uint32_t sleep_ms = 30 * 1000; /* sleep in ms 60*60*1000 = 1 hour */
-//uint32_t sleep_ms = 60 * 60 * 1000; /* sleep in ms 60*60*1000 = 1 hour */
+uint32_t sleep_ms = 60 * 60 * 1000; /* sleep in ms 60*60*1000 = 1 hour */
 
 void getData()
 {
-  uint32_t bat = 0;
-  uint32_t temp = 0;
   uint32_t ph = 0;
+  uint32_t bat = 0;
+  uint32_t tempWater = 0;
+  uint32_t tempBoard = 0;
+  uint32_t rh = 0;
   
   /*
   uint64_t analog_measure = 0;
@@ -70,19 +85,45 @@ void getData()
   Serial.print("measured [V]: ");
   Serial.print(V);
 
-  ph = (((ph2Calib - ph1Calib) / (v2Calib - v1Calib)) * V + offset) * 1000;
+  ph = (((ph2Calib - ph1Calib) / (v2Calib - v1Calib)) * V + offset) * 100;
   Serial.print("  -> pH: ");
-  Serial.print(ph/1000);
+  Serial.print(ph/100);
   Serial.println();
 
+////////// TODO //////////
+  bat = 3.3 * 100;    // test
+////////// TODO //////////
+
+  sensors.requestTemperatures();
+  float tempC = sensors.getTempCByIndex(0);
+  Serial.print("Temperature Water [°C]: ");
+  Serial.print(tempC);
+  Serial.println();
+  tempWater = (uint32_t)(tempC*100);
+
+  sensors_event_t ahthumidity, ahttemp;
+  aht.getEvent(&ahthumidity, &ahttemp);
+  
+  Serial.print("Temperature Board [°C]: ");
+  Serial.print(ahttemp.temperature);
+  Serial.println();
+  tempBoard = (uint32_t)(ahttemp.temperature*100);
+
+  Serial.print("RH [%]: ");
+  Serial.print(ahthumidity.relative_humidity);
+  Serial.println();
+  tempBoard = (uint32_t)(ahthumidity.relative_humidity*100);
+  
   payload[0] = highByte(ph);
   payload[1] = lowByte(ph);
   payload[2] = highByte(bat);
   payload[3] = lowByte(bat);
-  payload[4] = highByte(temp);
-  payload[5] = lowByte(temp);
-  payload[6] = 0;
-  payload[7] = 0;
+  payload[4] = highByte(tempWater);
+  payload[5] = lowByte(tempWater);
+  payload[6] = highByte(tempBoard);
+  payload[7] = lowByte(tempBoard);
+  payload[8] = highByte(rh);
+  payload[9] = lowByte(rh);
 }
 
 void sendLora()
@@ -112,6 +153,16 @@ void setup()
   // ph sensor analog input
   pinMode(PH_ANALOG_PIN, INPUT);
 
+  // ds18b20 temp sensor 
+  sensors.begin();
+
+  if (! aht.begin()) {
+    Serial.println("Could not find AHT20!");
+    while(1) {
+      delay(10);
+    }
+  }
+  
   getData();
 
   if (!modem.begin(EU868))
@@ -146,6 +197,8 @@ void setup()
       delay(10000);
     }
   } while (!connected);
+  
+  delay(1000);
 }
 
 void loop()
@@ -157,10 +210,16 @@ void loop()
   digitalWrite(LED_BUILTIN, HIGH);
 
   getData();
-  sendLora();
-
   digitalWrite(LED_BUILTIN, LOW);
-  //delay(10000);
+  
+#ifdef LORA_SEND_EN
+  sendLora();
+#endif
+
+#ifdef LOW_POWER_EN
   LowPower.sleep(sleep_ms); //or deepSleep
   // https://www.youtube.com/watch?v=urLSDi7SD8M
+#else
+  delay(10000);
+#endif
 }
